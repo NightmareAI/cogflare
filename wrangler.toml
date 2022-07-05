@@ -1,0 +1,19 @@
+name = "cogflare"
+main = "src/index.ts"
+compatibility_date = "2022-07-04"
+r2_buckets = [ { binding = "COG_OUTPUTS", bucket_name="cog-outputs", preview_bucket_name="cog-outputs-dev" } ]
+
+[durable_objects]
+bindings = [
+  { name = "COGFLARE", class_name = "Cogflare" },
+  { name = "QUEUE", class_name = "Queue" }
+]
+
+[[migrations]]
+  tag = "v1"
+  new_classes = ["Cogflare"]
+
+[[migrations]]
+  tag = "v2"
+  new_classes = ["Queue"]
+
