@@ -1,20 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
-export { Cogflare } from './cogflare'
+
 export { Queue } from './queue'
+export { Prediction } from './prediction'
 
 export interface Env {
-  // Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
-  // MY_KV_NAMESPACE: KVNamespace;
-  //
-  // Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-  // MY_DURABLE_OBJECT: DurableObjectNamespace;
-  //
-  // Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
-  // MY_BUCKET: R2Bucket;
-  COGFLARE: DurableObjectNamespace
   QUEUE: DurableObjectNamespace
-  REPLICATE_TOKEN: string
+  PREDICTION: DurableObjectNamespace
+  REPLICATE_API_TOKEN: string
+  COGFLARE_URL: string
   COG_OUTPUTS: R2Bucket
+  PREDICTIONS_KV: KVNamespace
 }
 
 
@@ -37,11 +32,45 @@ export default {
     if (path[0] != 'v1')
       return new Response("Not found", { status: 404 });
 
+
+
     switch (path[1]) {
-      case 'predict': {
-        let id = env.COGFLARE.newUniqueId();
-        let stub = env.COGFLARE.get(id);
-        let response = await stub.fetch(request);
+      case 'predictions': {
+        let id: DurableObjectId | null = null;
+        switch (request.method) {
+          case 'GET': {
+            if (!path[2]) {
+              // TODO - List predictions
+              return new Response("Not implemented", { status: 400 });
+            }
+            // Check KV for completed job
+            let value = await env.PREDICTIONS_KV.get(path[2])
+            if (value)
+              return new Response(value);
+
+            id = env.PREDICTION.idFromString(path[2]);
+            break;
+          }
+          case 'POST': {
+            if (!path[2]) {
+              id = env.PREDICTION.newUniqueId();
+            } else {
+              id = env.PREDICTION.idFromString(path[2]);
+            }
+            break;
+          }
+          default:
+            return new Response("Method not supported", { status: 400 });
+        }
+        if (!id)
+          return new Response("Not found", { status: 400 });
+        let stub = env.PREDICTION.get(id);
+        if (!stub)
+          return new Response("Not found", { status: 400 });
+
+        let newUrl = new URL(request.url);
+        newUrl.pathname = "/" + path.slice(2).join("/");
+        let response = await stub.fetch(newUrl.toString(), request);
         return response;
       }
       case 'queue': {

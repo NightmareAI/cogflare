@@ -23,23 +23,32 @@ class Model {
   }
 
   async *predictor(input) {
-    if (!this.modelDetails)
-      await this.getModelDetails()
-    let startRequest = { "version": this.modelDetails.id, "input": input }
-    let startResponse = await fetch(`${BASE_URL}/predictions`, { method: 'POST', headers: this.headers, body: JSON.stringify(startRequest) });
+    let startResponse = await this.startPrediction(input);
     let predictionStatus;
     let startJson = await startResponse.json();
-    console.log(startJson);
     do {
       let predictionId = startJson.id;
-      let checkResponse = await fetch(`${BASE_URL}/predictions/${predictionId}`, { headers: this.headers });
-      let data = await checkResponse.json();
+      let data = await this.getPrediction(predictionId);
       predictionStatus = data.status;
       let latestPrediction = data.output;
+      //let latestPrediction = { output: data.output, logs: data.logs, status: data.status, error: data.error };
       await sleep(POLLING_INTERVAL);
       yield latestPrediction;
 
     } while (['starting', 'processing'].includes(predictionStatus))
+  }
+
+  async startPrediction(input) {
+    if (!this.modelDetails)
+      await this.getModelDetails()
+    let startRequest = { "version": this.modelDetails.id, "input": input }
+    let startResponse = await fetch(`${BASE_URL}/predictions`, { method: 'POST', headers: this.headers, body: JSON.stringify(startRequest) });
+    return await startResponse.json();
+  }
+
+  async getPrediction(predictionId) {
+    let checkResponse = await fetch(`${BASE_URL}/predictions/${predictionId}`, { headers: this.headers });
+    return await checkResponse.json();
   }
 
   async predict(input) {

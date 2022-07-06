@@ -1,13 +1,35 @@
-name = "cogflare"
+name = "cogflare-dev"
 main = "src/index.ts"
 compatibility_date = "2022-07-04"
+account_id = "0c52d0e521e103c3f330970a53c76fd6"
+workers_dev = true
+usage_model = "unbound"
 r2_buckets = [ { binding = "COG_OUTPUTS", bucket_name="cog-outputs", preview_bucket_name="cog-outputs-dev" } ]
+kv_namespaces = [ { binding = "PREDICTIONS_KV", id="9cba400d365c40bda3967624cb6a81fc", preview_id="90ef13f96c9448b2af70a2c912b80035" }]
+
+[dev]
+  ip = "localhost"
+  port = 8422
+  local_protocol = "http"
 
 [durable_objects]
-bindings = [
-  { name = "COGFLARE", class_name = "Cogflare" },
-  { name = "QUEUE", class_name = "Queue" }
+bindings = [  
+  { name = "QUEUE", class_name = "Queue" },
+  { name = "PREDICTION", class_name = "Prediction" }
 ]
+
+
+[vars]
+COGFLARE_URL = "http://localhost:8422/v1"
+ENVIRONMENT = "dev"
+
+[env.production]
+name = "cogflare"
+vars = { COGFLARE_URL = "https://cog.nmb.ai/v1", ENVIRONMENT="production"}
+durable_objects = { bindings = [ { name = "QUEUE", class_name = "Queue" }, { name = "PREDICTION", class_name = "Prediction" } ]}
+r2_buckets = [ { binding = "COG_OUTPUTS", bucket_name="cog-outputs", preview_bucket_name="cog-outputs-dev" } ]
+kv_namespaces = [ { binding = "PREDICTIONS_KV", id="9cba400d365c40bda3967624cb6a81fc", preview_id="90ef13f96c9448b2af70a2c912b80035" }]
+
 
 [[migrations]]
   tag = "v1"
@@ -17,3 +39,7 @@ bindings = [
   tag = "v2"
   new_classes = ["Queue"]
 
+[[migrations]]
+  tag = "v3"
+  new_classes = ["Prediction"]
+  deleted_classes = ["Cogflare"]

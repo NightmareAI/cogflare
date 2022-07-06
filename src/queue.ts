@@ -7,16 +7,17 @@ type Session = {
 }
 
 export class Queue {
+  state: DurableObjectState
   items: any[]
   sessions: any[]
   constructor(state: DurableObjectState, env: Env) {
+    this.state = state
     this.items = [];
     this.sessions = [];
   }
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     let url = new URL(request.url);
-    console.log(url.pathname);
     switch (url.pathname) {
       case "/websocket": {
         if (request.headers.get("Upgrade") != "websocket") {
@@ -28,7 +29,7 @@ export class Queue {
         return new Response(null, { status: 101, webSocket: pair[0] });
       }
       case "/predict": {
-        let req = JSON.parse((await request.text()));
+        let req = JSON.parse(await request.text());
         var session: Session = this.sessions.filter(member => !member.quit && !member.request)[0];
         if (!session)
           return new Response("No workers available", { status: 400 });
@@ -57,7 +58,7 @@ export class Queue {
         let data = JSON.parse(msg.data.toString());
         console.log(data);
       } catch (err: any) {
-        webSocket.send(JSON.stringify({ error: err.stack }));
+        console.log("Failed to handle response:\n" + JSON.stringify({ error: err.stack }));
       }
     });
 
