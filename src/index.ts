@@ -35,6 +35,15 @@ export default {
 
 
     switch (path[1]) {
+      case 'models': {
+        const key = path.slice(1).join('/');
+        console.log(key);
+        const value = await env.COG_OUTPUTS.get(key);
+        if (value === null) {
+          return new Response("Not found", { status: 404 });
+        }
+        return new Response(value.body);
+      }
       case 'predictions': {
         let id: DurableObjectId | null = null;
         switch (request.method) {
