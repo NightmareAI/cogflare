@@ -3,9 +3,13 @@ main = "src/index.ts"
 compatibility_date = "2022-07-04"
 account_id = "0c52d0e521e103c3f330970a53c76fd6"
 workers_dev = true
+node_compat = false
 usage_model = "unbound"
 r2_buckets = [ { binding = "COG_OUTPUTS", bucket_name="cog-outputs", preview_bucket_name="cog-outputs-dev" } ]
-kv_namespaces = [ { binding = "PREDICTIONS_KV", id="9cba400d365c40bda3967624cb6a81fc", preview_id="90ef13f96c9448b2af70a2c912b80035" }]
+kv_namespaces = [ 
+  { binding = "PREDICTIONS_KV", id="9cba400d365c40bda3967624cb6a81fc", preview_id="90ef13f96c9448b2af70a2c912b80035" },
+  { binding = "TOKENS_KV", id="a706ad4144f44b52b96929d26797c3b2", preview_id="b88a209b079448f08097787b5b4ef67c" }
+  ]
 
 [dev]
   ip = "localhost"
@@ -28,8 +32,10 @@ name = "cogflare"
 vars = { COGFLARE_URL = "https://cog.nmb.ai/v1", ENVIRONMENT="production"}
 durable_objects = { bindings = [ { name = "QUEUE", class_name = "Queue" }, { name = "PREDICTION", class_name = "Prediction" } ]}
 r2_buckets = [ { binding = "COG_OUTPUTS", bucket_name="cog-outputs", preview_bucket_name="cog-outputs-dev" } ]
-kv_namespaces = [ { binding = "PREDICTIONS_KV", id="9cba400d365c40bda3967624cb6a81fc", preview_id="90ef13f96c9448b2af70a2c912b80035" }]
-
+kv_namespaces = [ 
+  { binding = "PREDICTIONS_KV", id="9cba400d365c40bda3967624cb6a81fc", preview_id="90ef13f96c9448b2af70a2c912b80035" },
+  { binding = "TOKENS_KV", id="a706ad4144f44b52b96929d26797c3b2", preview_id="b88a209b079448f08097787b5b4ef67c" }
+  ]
 
 [[migrations]]
   tag = "v1"

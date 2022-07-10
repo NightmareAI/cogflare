@@ -10,13 +10,24 @@ export interface Env {
   COGFLARE_URL: string
   COG_OUTPUTS: R2Bucket
   PREDICTIONS_KV: KVNamespace
+  TOKENS_KV: KVNamespace
 }
-
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     let url = new URL(request.url);
     let path = url.pathname.slice(1).split('/');
+    let authenticated = false;
+    try {
+      let token = request.headers.get("X-Cogflare-Token");
+      if (token) {
+        let auth = await env.TOKENS_KV.get(token);
+        if (auth) {
+          authenticated = JSON.parse(auth).allow;
+        }
+      }
+    }
+    catch (ex) { console.log("error parsing auth: " + ex) }
     if (!path[0])
       return new Response();
 
@@ -32,17 +43,46 @@ export default {
     if (path[0] != 'v1')
       return new Response("Not found", { status: 404 });
 
-
-
     switch (path[1]) {
       case 'models': {
-        const key = path.slice(1).join('/');
-        console.log(key);
-        const value = await env.COG_OUTPUTS.get(key);
-        if (value === null) {
+        if (!path[2] || !path[3]) {
+          // TODO: Get model list
           return new Response("Not found", { status: 404 });
         }
-        return new Response(value.body);
+
+        const model = path[2] + "/" + path[3];
+        if (path[4] == "websocket") {
+          let id = env.QUEUE.idFromName(model);
+          let stub = env.QUEUE.get(id);
+          let newUrl = new URL(request.url);
+          newUrl.pathname = "/" + path.slice(4).join("/");
+          return stub.fetch(newUrl.toString(), request);
+        }
+        switch (request.method) {
+          case 'GET': {
+            if (!path[4] || !path[5]) {
+              return new Response("Not found", { status: 404 });
+            }
+            const key = path.slice(1).join('/');
+            console.log(key);
+            const value = await env.COG_OUTPUTS.get(key);
+            if (value === null) {
+              return new Response("Not found", { status: 404 });
+            }
+            return new Response(value.body);
+          }
+          case 'PUT':
+          case 'POST':
+            {
+              // TODO: Authentication
+              let id = uuidv4();
+              const formData = await request.formData();
+              const file = formData.get('file') as File;
+              const key = `models/${model}/files/${id}/${file.name}`;
+              await env.COG_OUTPUTS.put(key, file.stream());
+              return new Response(JSON.stringify({ url: `${env.COGFLARE_URL}/${key}` }));
+            }
+        }
       }
       case 'predictions': {
         let id: DurableObjectId | null = null;
@@ -61,6 +101,9 @@ export default {
             break;
           }
           case 'POST': {
+            if (!authenticated)
+              return new Response("Not authorized", { status: 401 });
+
             if (!path[2]) {
               id = env.PREDICTION.newUniqueId();
             } else {
@@ -81,24 +124,6 @@ export default {
         newUrl.pathname = "/" + path.slice(2).join("/");
         let response = await stub.fetch(newUrl.toString(), request);
         return response;
-      }
-      case 'queue': {
-        if (!path[2])
-          return new Response("Not found", { status: 404 });
-        let queueName = path[2];
-        let id = env.QUEUE.idFromName(queueName);
-        let stub = env.QUEUE.get(id);
-        let newUrl = new URL(request.url);
-        newUrl.pathname = "/" + path.slice(3).join("/");
-        return stub.fetch(newUrl.toString(), request);
-      }
-      case "upload": {
-        let id = uuidv4();
-        const formData = await request.formData();
-        const file = formData.get('file') as File;
-        const key = id + '/' + file.name
-        await env.COG_OUTPUTS.put(key, file.stream());
-        return new Response(JSON.stringify({ url: "https://cog.nmb.ai/outputs/" + key }));
       }
       default:
         return new Response("Not found", { status: 404 });
