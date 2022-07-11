@@ -26,6 +26,8 @@
     "@opentelemetry/resources": "^1.4.0",
     "@opentelemetry/sdk-trace-web": "^1.4.0",
     "@opentelemetry/semantic-conventions": "^1.4.0",
+    "denque": "^2.0.1",
+    "realm-web": "^1.7.1",
     "uuid": "^8.3.2"
   }
 }

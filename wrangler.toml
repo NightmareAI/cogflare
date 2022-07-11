@@ -26,10 +26,11 @@ bindings = [
 [vars]
 COGFLARE_URL = "http://localhost:8422/v1"
 ENVIRONMENT = "dev"
+REALM_APP_ID = "cogflare-jzpry"
 
 [env.production]
 name = "cogflare"
-vars = { COGFLARE_URL = "https://cog.nmb.ai/v1", ENVIRONMENT="production"}
+vars = { COGFLARE_URL = "https://cog.nmb.ai/v1", ENVIRONMENT="production", REALM_APP_ID = "cogflare-jzpry" }
 durable_objects = { bindings = [ { name = "QUEUE", class_name = "Queue" }, { name = "PREDICTION", class_name = "Prediction" } ]}
 r2_buckets = [ { binding = "COG_OUTPUTS", bucket_name="cog-outputs", preview_bucket_name="cog-outputs-dev" } ]
 kv_namespaces = [ 

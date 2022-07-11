@@ -1,3 +1,4 @@
+import * as Realm from 'realm-web';
 import Replicate from "./replicate";
 import { Queue } from "./queue";
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +15,7 @@ export class Prediction {
   model?: any
   outputBucket: R2Bucket
   queueNamespace: DurableObjectNamespace
+  app: Realm.App
   constructor(state: DurableObjectState, env: Env) {
     this.state = state
     this.storage = state.storage
@@ -22,6 +24,7 @@ export class Prediction {
     this.replicateToken = env.REPLICATE_API_TOKEN
     this.outputBucket = env.COG_OUTPUTS
     this.queueNamespace = env.QUEUE
+    this.app = new Realm.App(env.REALM_APP_ID)
   }
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -62,9 +65,6 @@ export class Prediction {
 
           const id = this.state.id.toString();
 
-          if (req["callbackUrl"])
-            await this.storage.put("callbackUrl", req["callbackUrl"] as string)
-
           this.result = {
             id: id,
             urls: {
@@ -82,7 +82,24 @@ export class Prediction {
           this.result.input = req.input;
 
           await this.storage.put("result", JSON.stringify(this.result));
+
+          if (req["callbackUrl"]) {
+            let callbackUrl = req["callbackUrl"];
+            await this.storage.put("callbackUrl", callbackUrl);
+            try {
+              let callbackResult = await fetch(callbackUrl, { method: "POST", body: JSON.stringify(this.result), headers: { "content-type": "application/json" } });
+              if (callbackResult.status != 200) {
+                console.log(`callback invoke ${callbackUrl} failed with ${callbackResult.status} ${callbackResult.statusText}, data follows`);
+                console.log(JSON.stringify(this.result));
+              }
+            }
+            catch (ex) {
+              console.log("callback url error" + ex);
+            }
+          }
+
           this.storage.setAlarm(Date.now() + 100);
+
           return new Response(JSON.stringify(this.result));
         }
       }
@@ -133,7 +150,7 @@ export class Prediction {
       let status = await (await queueStub.fetch(`${this.baseUrl}/status`, {})).json<any>();
       console.log(status);
       let startResult;
-      if (status.available > 0) {
+      if (status.total > 0 && status.queued <= status.total) {
         this.result.cogflare = true;
         this.result.runner = "runpod";
         const startResponse = await queueStub.fetch(`${this.baseUrl}/predictions`, { body: JSON.stringify(this.result), method: "POST", headers: { "content-type": "application/json" } });
@@ -265,4 +282,5 @@ interface Env {
   COGFLARE_URL: string
   REPLICATE_API_TOKEN: string
   PREDICTIONS_KV: KVNamespace
+  REALM_APP_ID: string
 }
