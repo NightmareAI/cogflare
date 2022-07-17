@@ -17,6 +17,7 @@ Contact [palp@nmb.ai](mailto:palp@nmb.ai) if you're interested in using my hoste
 
 ## No, not how do I use yours, how do I use it?
 *This is a preliminary guide and needs a lot of work, operation is subject to drastic changes and it's not really recommended to do this yourself yet*
+
 If you'd like to host it yourself, it should be as simple as updating the `wrangler.toml` file with your own account and resources (which you'll need to create) and deploying - no special sauce. The setup of Cloudflare workers is beyond the scope of this document for now, but I hope to add some basic instructions soon.
 
 You'll need an entry in the TOKENS_KV, with the key acting as an authorization token and the contents being a JSON structure like this:
