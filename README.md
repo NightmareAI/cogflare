@@ -1,7 +1,7 @@
 # Cogflare 
 *(Working title)*
 
-**Cogflare** is a [Cloudflare Workers](https://workers.cloudflare.com/) application that aims to simplify running distributed ML inference jobs through a central API. The jobs can (currently) be run using the [Replicate](https://www.replicate.com/) or anywhere that Docker and a GPU is available, such as [RunPod](https://runpod.io) or your own hardware.
+**Cogflare** is a [Cloudflare Workers](https://workers.cloudflare.com/) application that aims to simplify running distributed ML inference jobs through a central API. The jobs can (currently) be run using [Replicate](https://www.replicate.com/) or anywhere that Docker and a GPU is available, such as [RunPod](https://runpod.io) or your own hardware.
 
 ## How does it work?
 Cogflare provides an HTTP API that is similar in surface area to [Replicate's API](https://replicate.com/api), but enables additional flexibility for running predictions. It provides a websocket server that workers connect to, and a lightweight queue with state managed by [Durable Objects](https://www.cloudflare.com/cloudflare-workers-durable-objects-beta) for running jobs on those workers. [R2](https://www.cloudflare.com/products/r2/) is leveraged to provide storage for results with high speed and no bandwidth costs, and the workers KV store is used as a record of data.
