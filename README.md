@@ -29,7 +29,7 @@ Jobs will run on Replicate unless there are workers available. There is simple o
 
 Currently workers have to run Docker images built using a [fork of Replicate's Cog](https://github.com/NightmareAI/cog), however the public image `r8.im/nightmareai/disco-diffusion` has been built using this so I'll use it as an example. To start a worker for Disco Diffusion, a typical command would look like:
 ```
-docker run --rm --gpus=all r8.im/nightmareai/disco-diffusion python -m cog.server.websockets wss://[WORKER-URL]/v1/models/nightmareai/disco-diffusion/websockets/[WORKER-TOKEN] https://cog.nmb.ai/v1/models/nightmareai/disco-diffusion/files nightmareai/disco-diffusion
+docker run --rm --gpus=all r8.im/nightmareai/disco-diffusion python -m cog.server.websockets wss://[WORKER-URL]/v1/models/nightmareai/disco-diffusion/websockets/[WORKER-TOKEN] https://[WORKER-URL]/v1/models/nightmareai/disco-diffusion/files nightmareai/disco-diffusion
 ```
 This attaches the worker to your queue for this model, and it will continue to reconnect and run jobs until killed.
 
