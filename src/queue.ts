@@ -39,9 +39,11 @@ export class Queue {
         this.sessions = await this.state.storage.get<Session[]>("sessions") || [];
         for (var session of this.sessions) {
           // no sessions are connected on startup, they will have to reconnect.
-          // TODO: Cleanup old sessions
+          // TODO: Cleanup timed out sessions            
           session.quit = true;
         }
+        // Filter out any old sessions without jobs
+        this.sessions = this.sessions.filter(s => s.request != null);
       } catch { }
     });
   }
