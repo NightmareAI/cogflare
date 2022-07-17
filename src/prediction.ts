@@ -13,7 +13,6 @@ export class Prediction {
   kv: KVNamespace
   tokens: KVNamespace
   result?: PredictionResult
-  replicateToken: string
   baseUrl: string
   model?: any
   outputBucket: R2Bucket
@@ -26,7 +25,6 @@ export class Prediction {
     this.kv = env.PREDICTIONS_KV
     this.tokens = env.TOKENS_KV
     this.baseUrl = env.COGFLARE_URL
-    this.replicateToken = env.REPLICATE_API_TOKEN
     this.outputBucket = env.COG_OUTPUTS
     this.queueNamespace = env.QUEUE
     this.app = new Realm.App(env.REALM_APP_ID)
@@ -132,7 +130,7 @@ export class Prediction {
     let id = uuidv4();
     let key = `models/${model}/files/${id}/${path.slice(-1)}`;
     if (url.host.includes("replicate.com"))
-      headers = { 'Authorization': `Token ${this.replicateToken}` };
+      headers = { 'Authorization': `Token ${this.user?.replicate}` };
     let imageResult = await fetch(imageUrl, { headers: headers });
     if (imageResult.status != 200) {
       console.log(`failed to get ${url}: ${imageResult.status} ${imageResult.statusText}`);
@@ -157,7 +155,7 @@ export class Prediction {
       return;
     }
 
-    let replicate = new Replicate({ token: this.replicateToken });
+    let replicate = new Replicate({ token: this.user?.replicate });
     if (!this.model)
       this.model = await replicate.getModel(this.result.model, this.result.version);
 

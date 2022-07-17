@@ -7,7 +7,6 @@ import auth, { User } from './util/auth';
 export interface Env {
   QUEUE: DurableObjectNamespace
   PREDICTION: DurableObjectNamespace
-  REPLICATE_API_TOKEN: string
   COGFLARE_URL: string
   COG_OUTPUTS: R2Bucket
   PREDICTIONS_KV: KVNamespace
