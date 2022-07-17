@@ -1,14 +1,17 @@
 import * as Realm from 'realm-web';
 import Replicate from "./replicate";
 import { Queue } from "./queue";
+
 import { v4 as uuidv4 } from 'uuid';
 const POLLING_INTERVAL = 5000;
+import auth, { User } from './util/auth';
 
 // Represents a single prediction
 export class Prediction {
   state: DurableObjectState
   storage: DurableObjectStorage
   kv: KVNamespace
+  tokens: KVNamespace
   result?: PredictionResult
   replicateToken: string
   baseUrl: string
@@ -16,10 +19,12 @@ export class Prediction {
   outputBucket: R2Bucket
   queueNamespace: DurableObjectNamespace
   app: Realm.App
+  user?: User | null
   constructor(state: DurableObjectState, env: Env) {
     this.state = state
     this.storage = state.storage
     this.kv = env.PREDICTIONS_KV
+    this.tokens = env.TOKENS_KV
     this.baseUrl = env.COGFLARE_URL
     this.replicateToken = env.REPLICATE_API_TOKEN
     this.outputBucket = env.COG_OUTPUTS
@@ -30,7 +35,10 @@ export class Prediction {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     let url = new URL(request.url);
     let path = url.pathname.slice(1).split('/');
-    let replicate = new Replicate({ token: this.replicateToken });
+    this.user = await auth.auth(request, this.tokens);
+    if (this.user) {
+      this.storage.put("user", this.user);
+    }
     switch (request.method) {
       case 'GET': {
         if (path[0] && path[0] == this.state.id.toString() && this.result)
@@ -38,6 +46,11 @@ export class Prediction {
         return new Response("Not found", { status: 404 });
       }
       case 'POST': {
+        if (!this.user || !this.user.allow)
+          return new Response("Not authorized", { status: 401 });
+        if (!this.user.replicate)
+          return new Response("Replicate token not configured", { status: 400 });
+        let replicate = new Replicate({ token: this.user.replicate });
         if (!path[0]) {
           let req = await request.json<any>();
           let modelName = req.model;
@@ -81,7 +94,7 @@ export class Prediction {
           this.result.status = "creating";
           this.result.input = req.input;
 
-          await this.storage.put("result", JSON.stringify(this.result));
+          await this.storage.put("result", this.result);
 
           if (req["callbackUrl"]) {
             let callbackUrl = req["callbackUrl"];
@@ -132,10 +145,15 @@ export class Prediction {
   }
 
   async alarm() {
-    this.result = JSON.parse(await this.storage.get("result") as string);
+    this.result = await this.storage.get<PredictionResult>("result");
+    this.user = await this.storage.get<User>("user");
     const callbackUrl = await this.storage.get("callbackUrl") as string;
     if (!this.result || !this.result.model || !this.result.version || !this.result.input) {
       console.log("alarm fired with no data for prediction " + this.state.id);
+      return;
+    }
+    if (this.result.completed_at) {
+      console.log("alarm fired on completed job" + this.state.id);
       return;
     }
 
@@ -145,7 +163,7 @@ export class Prediction {
 
     if (!this.result.replicateId && !this.result.cogflare) {
       console.log("Starting prediction " + this.state.id);
-      let queueId = this.queueNamespace.idFromName(this.result.model);
+      let queueId = this.queueNamespace.idFromName(this.user?.worker + "/" + this.result.model);
       let queueStub = this.queueNamespace.get(queueId);
       let status = await (await queueStub.fetch(`${this.baseUrl}/status`, {})).json<any>();
       console.log(status);
@@ -167,7 +185,7 @@ export class Prediction {
         this.result.replicateId = startResult.id;
       }
       this.result.status = startResult.status;
-      await this.storage.put("result", JSON.stringify(this.result));
+      await this.storage.put("result", this.result);
       this.storage.setAlarm(Date.now() + POLLING_INTERVAL);
       return;
     }
@@ -175,7 +193,7 @@ export class Prediction {
     if (this.result.replicateId) {
       result = await this.model.getPrediction(this.result.replicateId);
     } else {
-      let queueId = this.queueNamespace.idFromName(this.result.model);
+      let queueId = this.queueNamespace.idFromName(this.user?.worker + "/" + this.result.model);
       let queueStub = this.queueNamespace.get(queueId);
       result = await (await queueStub.fetch(`${this.baseUrl}/predictions/${this.result.id}`)).json<any>();
     }
@@ -241,7 +259,7 @@ export class Prediction {
           this.result.created_at = new Date();
         console.log(`${new Date(this.result.created_at).valueOf() + (30 * 60000)} ${new Date().valueOf()}`)
         if ((new Date(this.result.created_at).valueOf() + (30 * 60000)) > new Date().valueOf()) {
-          await this.storage.put("result", JSON.stringify(this.result));
+          await this.storage.put("result", this.result);
           this.storage.setAlarm(Date.now() + POLLING_INTERVAL);
         } else {
           console.log(`prediction timed out: ${this.state.id}`);
@@ -280,7 +298,7 @@ interface Env {
   QUEUE: DurableObjectNamespace
   COG_OUTPUTS: R2Bucket
   COGFLARE_URL: string
-  REPLICATE_API_TOKEN: string
   PREDICTIONS_KV: KVNamespace
   REALM_APP_ID: string
+  TOKENS_KV: KVNamespace
 }

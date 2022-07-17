@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export { Queue } from './queue'
 export { Prediction } from './prediction'
+import auth, { User } from './util/auth';
 
 export interface Env {
   QUEUE: DurableObjectNamespace
@@ -18,16 +19,8 @@ export default {
     let url = new URL(request.url);
     let path = url.pathname.slice(1).split('/');
     let authenticated = false;
-    try {
-      let token = request.headers.get("X-Cogflare-Token");
-      if (token) {
-        let auth = await env.TOKENS_KV.get(token);
-        if (auth) {
-          authenticated = JSON.parse(auth).allow;
-        }
-      }
-    }
-    catch (ex) { console.log("error parsing auth: " + ex) }
+    let user = await auth.auth(request, env.TOKENS_KV);
+    authenticated = user?.allow ?? false;
     if (!path[0])
       return new Response();
 
@@ -52,7 +45,7 @@ export default {
 
         const model = path[2] + "/" + path[3];
         if (path[4] == "websocket") {
-          let id = env.QUEUE.idFromName(model);
+          let id = env.QUEUE.idFromName(path[5] + "/" + model);
           let stub = env.QUEUE.get(id);
           let newUrl = new URL(request.url);
           newUrl.pathname = "/" + path.slice(4).join("/");
